@@ -1,5 +1,6 @@
 package visitor;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
@@ -11,6 +12,8 @@ public class ClassMethodTable {
   
   public HashMap <Symbol, SymbolTableEntry> table = null;
 
+  public ArrayList<Stmnt> statements = null;
+  
   public ClassMethodTable(String methodName, String className) {
     this(methodName);
     this.className = className;
@@ -20,6 +23,7 @@ public class ClassMethodTable {
     this.methodName = string;
     this.table = new HashMap<Symbol, SymbolTableEntry> ();
     this.className = null;
+    this.statements = new ArrayList<Stmnt>();
   }
 
   public void addClassName(String className) {
