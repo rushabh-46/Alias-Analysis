@@ -6,7 +6,6 @@ package visitor;
 
 import java.util.*;
 import java.util.Map.Entry;
-
 import syntaxtree.*;
 
 /**
@@ -16,21 +15,20 @@ import syntaxtree.*;
 public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
 
   ////////////// STATIC CLASS HIERARCHY ////////////////
-  // all the class types are declared here
-  public HashMap<String, ClassDetails> classes = new HashMap<String, ClassDetails>();
+  // all the class definitions, types and their hierarchy are declared here
+  public final HashMap<String, ClassDetails> classes = new HashMap<String, ClassDetails>();
 
   // list of roots - non-extended classes
-  public ArrayList<ClassDetails> roots = new ArrayList<ClassDetails> ();
-  
+  private final ArrayList<ClassDetails> roots = new ArrayList<ClassDetails>();
+
   //
   // Auto class visitors--probably don't need to be overridden.
   //
   public R visit(NodeList n, A argu) {
     R _ret = null;
-    int _count = 0;
+
     for (Enumeration<Node> e = n.elements(); e.hasMoreElements();) {
       e.nextElement().accept(this, argu);
-      _count++;
     }
     return _ret;
   }
@@ -38,10 +36,9 @@ public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
   public R visit(NodeListOptional n, A argu) {
     if (n.present()) {
       R _ret = null;
-      int _count = 0;
+
       for (Enumeration<Node> e = n.elements(); e.hasMoreElements();) {
         e.nextElement().accept(this, argu);
-        _count++;
       }
       return _ret;
     } else return null;
@@ -53,10 +50,9 @@ public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
 
   public R visit(NodeSequence n, A argu) {
     R _ret = null;
-    int _count = 0;
+
     for (Enumeration<Node> e = n.elements(); e.hasMoreElements();) {
       e.nextElement().accept(this, argu);
-      _count++;
     }
     return _ret;
   }
@@ -102,6 +98,7 @@ public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
    * f16 -> "}"
    * f17 -> "}"
    */
+  @SuppressWarnings("unchecked")
   public R visit(MainClass n, A argu) {
     // Main class won't be counted as a classType
     // It has one method - main() which can be included later if required manually.
@@ -156,6 +153,7 @@ public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
    * f4 -> ( MethodDeclaration() )*
    * f5 -> "}"
    */
+  @SuppressWarnings("unchecked")
   public R visit(ClassDeclaration n, A argu) {
     // will add to the classes list.
     R _ret = null;
@@ -187,6 +185,7 @@ public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
    * f6 -> ( MethodDeclaration() )*
    * f7 -> "}"
    */
+  @SuppressWarnings("unchecked")
   public R visit(ClassExtendsDeclaration n, A argu) {
     // will add to the classes list.
     R _ret = null;
@@ -224,12 +223,12 @@ public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
     n.f2.accept(this, (A) argu);
     ClassDetails cl = (ClassDetails) argu;
     if (cl != null) {
-      if (cl.whatToAdd == 1) {
+      if (cl.getAdd() == 1) {
         cl.addField(name, typeName);
-      } else if (cl.whatToAdd == 3) {
+      } else if (cl.getAdd() == 3) {
         cl.currentMethod.addField(name, typeName);
       } else {
-        System.out.println("How come VarDeclaration here?");
+        //        System.out.println("How come VarDeclaration here?");
       }
     }
     return _ret;
@@ -330,33 +329,30 @@ public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
    * f1 -> "["
    * f2 -> "]"
    */
+  @SuppressWarnings("unchecked")
   public R visit(ArrayType n, A argu) {
-    R _ret = null;
     n.f0.accept(this, argu);
     n.f1.accept(this, argu);
     n.f2.accept(this, argu);
     return (R) "int[]";
-    //    return _ret;
   }
 
   /**
    * f0 -> "boolean"
    */
+  @SuppressWarnings("unchecked")
   public R visit(BooleanType n, A argu) {
-    R _ret = null;
     n.f0.accept(this, argu);
     return (R) "Boolean";
-    //    return _ret;
   }
 
   /**
    * f0 -> "int"
    */
+  @SuppressWarnings("unchecked")
   public R visit(IntegerType n, A argu) {
-    R _ret = null;
     n.f0.accept(this, argu);
     return (R) "int";
-    //    return _ret;
   }
 
   /**
@@ -736,8 +732,8 @@ public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
   /**
    * f0 -> <IDENTIFIER>
    */
+  @SuppressWarnings("unchecked")
   public R visit(Identifier n, A argu) {
-    R _ret = null;
     n.f0.accept(this, argu);
     return (R) n.f0.toString();
     // return _ret;
@@ -795,18 +791,27 @@ public class ClassHeirarchy<R, A> implements GJVisitor<R, A> {
     return _ret;
   }
 
+  /**
+   * Invoked once in main()
+   * It parses through all the class definitions,
+   * updates the reference to parent and children classes
+   * Basically forms the complete HIERARCHY !!
+   *
+   * Later calls bringFromTop()
+   * This recursively gets the fields and methods of parent classes.
+   */
   public void superToSub() {
-    for (Entry <String, ClassDetails> e : classes.entrySet()) {
-      if (e.getValue().doesExtend) {
+    for (Entry<String, ClassDetails> e : classes.entrySet()) {
+      if (e.getValue().doesExtend()) {
         ClassDetails cl = e.getValue();
-        ClassDetails par = classes.get(cl.extendClassName);
+        ClassDetails par = classes.get(cl.extendClassName());
         cl.parentClass = par;
         par.childrenClasses.add(cl);
       } else {
         roots.add(e.getValue());
       }
     }
-    
+
     // class hierarchy is made. Now lets add superclass methods
     for (ClassDetails cl : roots) {
       ClassDetails temp = new ClassDetails("temp");

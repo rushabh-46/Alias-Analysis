@@ -14,39 +14,127 @@ import syntaxtree.*;
  */
 public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
 
-  // this gets set in Main itself. So no worries.
+  /**
+   * map of all the class names and their ClassDetails
+   * this gets set in Main itself. So no worries
+   */
   public HashMap<String, ClassDetails> classDefinitions = null;
 
   // store the class fields and class methods separately
 
-  // global classs fields
+  /**
+   *  global class fields
+   *  mapping of class name and corresponding FieldTable
+   */
   public HashMap<String, ClassFieldTable> globalClassFieldTable = null;
 
-  // global class methods - will also contain overriden methods added later
+  /**
+   *  global class methods
+   *  This will also contain overriden methods added later
+   *  mapping of class name all the methodTable.
+   *  the methodTable itself will the insights, formals and other imp things
+   *  What all to store ????????????????????????????????????
+   */
   public HashMap<String, HashMap<String, ClassMethodTable>> globalClassMethodTable =
     null;
 
-  // current class field table
+  /**
+   * This Class - Symbol
+   * This Class - SymbolTableEntry
+   */
+  private Symbol thisSymbol = null;
+  private SymbolTableEntry thisSTE = null;
+
+  /**
+   *  private current class field table
+   */
   private ClassFieldTable currentClassFieldTable = null;
 
-  // current class method table
+  /**
+   *  private current class method table
+   */
   private ClassMethodTable currentClassMethodTable = null;
 
-  // current method map
+  /**
+   *  private current method map
+   */
   private HashMap<String, ClassMethodTable> currentClassMethodMap = null;
 
-  // private type name
+  /**
+   * main method
+   */
+  public ClassMethodTable main = null;
+
+  /**
+   * private current class name
+   */
+  private String currentClassName = null;
+
+  /**
+   *  private type name
+   *  Why ????????
+   */
   private String varTypeName = null;
 
-  // current class name
-  private String currentClassName = null;
+  /**
+   * Label for each statement in the program
+   */
+  private int label = 1;
+
+  /**
+   * Just to keep track for left hand side identifier while saving statements
+   * And it is enforced to NULL when the LHS is not a simple IDENTIFIER
+   * This value is used in PrimaryExpression
+   */
+  private String lhsId = null;
+
+  /**
+   * Used to identify which primary expression
+   * 1 -> integerLiteral, True, False
+   * 2 -> Id, this
+   * 5 -> simple alloc
+   * 10 -> array alloc
+   * -1 -> not expression
+   * TRY TO REPLACE WITH ENUMS
+   */
+  private int whichPrimaryExp = 0;
+
+  /**
+   * Used to identify which expression
+   * Note that only AssignmentStatement has Exp :
+   *        Id = Exp
+   * 100 -> MessageSend (PrimarExp.id(args))
+   * 15 -> FieldRead
+   * 20 -> PrimaryExp (only PrimaryExp)
+   * TRY TO REPLACE WITH ENUMS
+   */
+  private int whichExp = 0;
+
+  /**
+   * This stores the id used in primary expression
+   * Note that in all the primary expressions, exactly one identifier is used.
+   */
+  private String primaryExpId = null;
+
+  /**
+   * Stores the query Id
+   */
+  private int queryId = 0;
+
+  /**
+   * List of arguments
+   */
+  private ArrayList<String> arguments = new ArrayList<String>();
+
+  /**
+   * List of all the query statements found in parsing order
+   */
+  public static final ArrayList<QueryStmnt> qStatements = new ArrayList<QueryStmnt>();
 
   public R visit(NodeList n, A argu) {
     R _ret = null;
-    int _count = 0;
     for (Enumeration<Node> e = n.elements(); e.hasMoreElements();) {
       e.nextElement().accept(this, argu);
-      _count++;
     }
     return _ret;
   }
@@ -54,10 +142,8 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
   public R visit(NodeListOptional n, A argu) {
     if (n.present()) {
       R _ret = null;
-      int _count = 0;
       for (Enumeration<Node> e = n.elements(); e.hasMoreElements();) {
         e.nextElement().accept(this, argu);
-        _count++;
       }
       return _ret;
     } else return null;
@@ -69,10 +155,8 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
 
   public R visit(NodeSequence n, A argu) {
     R _ret = null;
-    int _count = 0;
     for (Enumeration<Node> e = n.elements(); e.hasMoreElements();) {
       e.nextElement().accept(this, argu);
-      _count++;
     }
     return _ret;
   }
@@ -123,10 +207,16 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f0.accept(this, argu);
     n.f1.accept(this, argu); // n.f1.f0.toString()
 
+    // Main class name can be anything not necessariy 'Main'
     currentClassName = n.f1.f0.toString();
     ClassFieldTable fTable = new ClassFieldTable(n.f1.f0.toString());
     // no fields in this class
+    // blank field table
     globalClassFieldTable.put(n.f1.f0.toString(), fTable);
+    // this object - although not required in Main
+    this.thisSymbol = new Symbol("this", currentClassName);
+    this.thisSTE = new SymbolTableEntry("this", currentClassName);
+    this.thisSTE.setAsParam();
 
     n.f2.accept(this, argu);
     n.f3.accept(this, argu);
@@ -142,8 +232,10 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f13.accept(this, argu);
 
     ClassMethodTable mTable = new ClassMethodTable("main", currentClassName);
-
+    this.main = mTable;
     currentClassMethodTable = mTable;
+    mTable.table.put(this.thisSymbol, this.thisSTE);
+    mTable.paramsSummary.add(this.thisSTE);
 
     n.f14.accept(this, argu);
     n.f15.accept(this, argu);
@@ -154,6 +246,7 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     mMap.put("main", mTable);
     globalClassMethodTable.put(n.f1.f0.toString(), mMap);
     currentClassMethodTable = null;
+
     return _ret;
   }
 
@@ -184,6 +277,10 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     currentClassName = n.f1.f0.toString();
     ClassFieldTable fTable = new ClassFieldTable(n.f1.f0.toString());
     currentClassFieldTable = fTable;
+    // this object symbol and ste
+    this.thisSymbol = new Symbol("this", currentClassName);
+    this.thisSTE = new SymbolTableEntry("this", currentClassName);
+    this.thisSTE.setAsParam();
 
     n.f3.accept(this, argu);
 
@@ -220,6 +317,10 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     currentClassName = n.f1.f0.toString();
     ClassFieldTable fTable = new ClassFieldTable(n.f1.f0.toString());
     currentClassFieldTable = fTable;
+    // this object symbol and ste
+    this.thisSymbol = new Symbol("this", currentClassName);
+    this.thisSTE = new SymbolTableEntry("this", currentClassName);
+    this.thisSTE.setAsParam();
 
     n.f3.accept(this, argu);
     n.f4.accept(this, argu);
@@ -264,13 +365,15 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
         new SymbolTableEntry(n.f1.f0.toString(), typeName)
       );
     } else {
-      System.out.println(
-        "ERROR: Which var Declaration bro? id = " + n.f1.f0.toString()
-      );
+      //      System.out.println(
+      //        "ERROR: Which var Declaration is this? id = " + n.f1.f0.toString()
+      //      );
     }
 
     //    Symbol s = new Symbol(n.f1.f0.toString(), )
     //    currentClassTable.put(new Symbol(), new SymbolTableEntry());
+
+    label++;
 
     return _ret;
   }
@@ -294,6 +397,9 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     R _ret = null;
     n.f0.accept(this, argu);
     n.f1.accept(this, argu);
+
+    String typeName = varTypeName;
+
     n.f2.accept(this, argu); // method name
 
     ClassMethodTable mTable = new ClassMethodTable(
@@ -301,9 +407,13 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
       currentClassName
     );
     currentClassMethodTable = mTable;
+    mTable.table.put(this.thisSymbol, this.thisSTE);
+    mTable.paramsSummary.add(this.thisSTE);
 
     // add the class fields by same reference (duplicating)
-    addClassFieldsInMethod();
+    // NO !! They will be called from symbol table .get()
+    // and we will check scope of 'this'
+    // addClassFieldsInMethod();
 
     n.f3.accept(this, argu);
     n.f4.accept(this, argu);
@@ -314,6 +424,11 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f9.accept(this, argu);
     n.f10.accept(this, argu);
     n.f11.accept(this, argu);
+
+    mTable.returnId = n.f10.f0.toString();
+    mTable.returnSummary = new SymbolTableEntry(n.f10.f0.toString(), typeName);
+    label++;
+
     n.f12.accept(this, argu);
 
     // Adding method table in class method map
@@ -322,43 +437,6 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     currentClassMethodTable = null;
 
     return _ret;
-  }
-
-  private void addClassFieldsInMethod() {
-    // GLOBAL FIELD TABLE DOES NOT CONTAIN inherited fields!!!!!!!!!!!!!!!!
-    //    currentClassFieldTable = globalClassFieldTable.get(currentClassName);
-    //    if (currentClassFieldTable == null) {
-    //      System.out.println("Failed to get className from global Field table");
-    //      return;
-    //    }
-    //    for (Entry<Symbol, SymbolTableEntry> e : currentClassFieldTable.table.entrySet()) {
-    //      currentClassMethodTable.table.put(e.getKey(), e.getValue());
-    //    }
-
-    // Using previously created classHierarchy to access all the inherited and current fields
-    ClassDetails curCls = classDefinitions.get(currentClassName);
-    if (curCls == null) {
-      System.out.println(
-        "Failed to get class" + currentClassName + " from classDefinitions"
-      );
-      return;
-    }
-    curCls.fields.forEach(
-      (name, field) -> {
-        System.out.println(
-          "ADDDDDDDDDDDDDDDDDDDDDDDDDDDing for class " +
-          currentClassMethodTable.className +
-          " the field " +
-          name +
-          " in method " +
-          currentClassMethodTable.methodName
-        );
-        currentClassMethodTable.table.put(
-          new Symbol(name, field.getTypeName()),
-          new SymbolTableEntry(name, field.getTypeName())
-        );
-      }
-    );
   }
 
   /**
@@ -381,10 +459,13 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f0.accept(this, argu);
     String typeName = varTypeName;
     n.f1.accept(this, argu);
-    currentClassMethodTable.table.put(
-      new Symbol(n.f1.f0.toString(), typeName),
-      new SymbolTableEntry(n.f1.f0.toString(), typeName)
-    );
+
+    Symbol symbol = new Symbol(n.f1.f0.toString(), typeName);
+    SymbolTableEntry ste = new SymbolTableEntry(n.f1.f0.toString(), typeName);
+    ste.setAsParam();
+    currentClassMethodTable.table.put(symbol, ste);
+    currentClassMethodTable.paramsSummary.add(ste);
+
     return _ret;
   }
 
@@ -470,6 +551,17 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f2.accept(this, argu);
     n.f3.accept(this, argu);
     n.f4.accept(this, argu);
+
+    ///////// Query Statement //////////
+    this.queryId++;
+    QueryStmnt queryStmnt = new QueryStmnt(this.queryId);
+    // assign Ids
+    queryStmnt.setId1(n.f1.f0.toString());
+    queryStmnt.setId2(n.f3.f0.toString());
+    // adding to statements
+    currentClassMethodTable.statements.add(queryStmnt);
+    GJDepthFirstSymbolTable.qStatements.add(queryStmnt);
+
     return _ret;
   }
 
@@ -510,9 +602,16 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
   public R visit(AssignmentStatement n, A argu) {
     R _ret = null;
     n.f0.accept(this, argu);
+
+    lhsId = n.f0.f0.toString();
+
     n.f1.accept(this, argu);
     n.f2.accept(this, argu);
     n.f3.accept(this, argu);
+
+    lhsId = null;
+    label++;
+
     return _ret;
   }
 
@@ -534,6 +633,9 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f4.accept(this, argu);
     n.f5.accept(this, argu);
     n.f6.accept(this, argu);
+
+    label++;
+
     return _ret;
   }
 
@@ -553,6 +655,18 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f3.accept(this, argu);
     n.f4.accept(this, argu);
     n.f5.accept(this, argu);
+
+    ///////// STORE Statement //////////
+    StoreStmnt storeStmnt = new StoreStmnt(label);
+    // assign RHS and LHS
+    storeStmnt.setId1(n.f0.f0.toString());
+    storeStmnt.setId2(n.f2.f0.toString());
+    storeStmnt.setId3(n.f4.f0.toString());
+    // adding to statements
+    currentClassMethodTable.statements.add(storeStmnt);
+
+    label++;
+
     return _ret;
   }
 
@@ -608,6 +722,9 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f2.accept(this, argu);
     n.f3.accept(this, argu);
     n.f4.accept(this, argu);
+
+    label++;
+
     return _ret;
   }
 
@@ -619,13 +736,56 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
    *       | TimesExpression()
    *       | ArrayLookup()
    *       | ArrayLength()
-   *       | MessageSend()
-   *       | FieldRead()
-   *       | PrimaryExpression()
+   *       | MessageSend() -> 100 -> AllocStmnt + (this) methodCall |  (object)methodCall
+   *       | FieldRead() -> 15 LoadStmnt
+   *       | PrimaryExpression() -> 20 -> AllocStmnt | CopyStmnt
    */
   public R visit(Expression n, A argu) {
     R _ret = null;
+    this.whichExp = 0;
     n.f0.accept(this, argu);
+
+    // Here you can better understand whether it was MessageSend or just PrimaryExpression.
+    switch (this.whichExp) {
+      case 20: // Just <PrimaryExp>
+        if (this.whichPrimaryExp == 2) {
+          // = Id | this
+          /////// COPY STATEMENT ////////
+          CopyStmnt copyStmnt = new CopyStmnt(label);
+          /////////////////////// assign RHS and LHS
+          copyStmnt.setId1(this.lhsId);
+          copyStmnt.setId2(this.primaryExpId);
+          //        System.out.println("<PrimaryExpId> in Copy = " + this.primaryExpId);
+          currentClassMethodTable.statements.add(copyStmnt);
+        } else if (this.whichPrimaryExp == 5) {
+          // = new Id()
+          ///////// ALLOC STATEMENT ////////
+          AllocStmnt allocStmnt = new AllocStmnt(label);
+          /////////////////// assign LHS and RHS
+          allocStmnt.setId1(this.lhsId);
+          allocStmnt.setId2(this.primaryExpId);
+          //        System.out.println("<PrimaryExpId> in Alloc = " + this.primaryExpId);
+          currentClassMethodTable.statements.add(allocStmnt);
+        } else if (this.whichPrimaryExp == 1 || this.whichPrimaryExp == -1) {
+          // = true | false | <Int> | !<Id>
+          ///////// ALLOC STATEMENT ////////
+          AllocStmnt allocStmnt = new AllocStmnt(label);
+          /////////////////// assign LHS and RHS
+          allocStmnt.setId1(this.lhsId);
+          allocStmnt.setId2(this.primaryExpId);
+          currentClassMethodTable.statements.add(allocStmnt);
+        }
+        break;
+      case 0: // All other expressions considered like creating a new object
+        //      System.out.println("Simple expressions : defaulted to Alloc! label=" + label);
+        ///////// ALLOC STATEMENT ////////
+        AllocStmnt allocStmnt = new AllocStmnt(label);
+        /////////////////// assign LHS and RHS
+        allocStmnt.setId1(this.lhsId);
+        currentClassMethodTable.statements.add(allocStmnt);
+        break;
+    }
+
     return _ret;
   }
 
@@ -732,11 +892,23 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f0.accept(this, argu);
     n.f1.accept(this, argu);
     n.f2.accept(this, argu);
+
+    /////// LOAD Statement ///////
+    LoadStmnt loadStmnt = new LoadStmnt(label);
+    // assign RHS's and LHS
+    loadStmnt.setId1(lhsId);
+    loadStmnt.setId2(n.f0.f0.toString());
+    loadStmnt.setId3(n.f2.f0.toString());
+    // add to statements
+    currentClassMethodTable.statements.add(loadStmnt);
+
+    this.whichExp = 15;
+
     return _ret;
   }
 
   /**
-   * f0 -> PrimaryExpression()
+   * f0 -> PrimaryExpression() -> can be AllocationE, Identifier, This
    * f1 -> "."
    * f2 -> Identifier()
    * f3 -> "("
@@ -746,13 +918,48 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
   public R visit(MessageSend n, A argu) {
     R _ret = null;
     n.f0.accept(this, argu);
+
     String primaryId = varTypeName;
+
     n.f1.accept(this, argu);
     n.f2.accept(this, argu);
+
+    this.arguments.clear();
     String methodName = n.f2.f0.toString();
+
     n.f3.accept(this, argu);
     n.f4.accept(this, argu);
     n.f5.accept(this, argu);
+
+    if (this.whichPrimaryExp == -1 || this.whichPrimaryExp == 2) {
+      // <Id>.func(argList)
+      /////// BasicCall Statement ///////
+      BasicCallStmnt callStmnt = new BasicCallStmnt(label);
+      callStmnt.setId1(lhsId);
+      callStmnt.setId2(primaryId);
+      callStmnt.setId3(methodName);
+      callStmnt.setActuals(this.arguments);
+      callStmnt.global = globalClassMethodTable;
+      callStmnt.mTable = currentClassMethodTable;
+      // first find type and then do bottomToTop to generate callee's
+      String typeName = currentClassMethodTable.search(
+        primaryId,
+        methodName,
+        classDefinitions
+      );
+      if (typeName != null) {
+        ArrayList<String> calleeClasses = classDefinitions
+          .get(typeName)
+          .subToSuper(methodName);
+        callStmnt.addCallees(calleeClasses);
+        // add to statements
+        currentClassMethodTable.statements.add(callStmnt);
+      } else {
+        //        System.out.println("!!!!!!!!! FAILED to find the calling type !!!!!!!!");
+      }
+    } else if (this.whichPrimaryExp == 5 || this.whichPrimaryExp == 10) {
+      // new <Id> ().func(argList)  OR   new int [<Id>].func(argList)
+    }
 
     // Adding bottomToTop methods.
     // Assuming <Primary Expression> is <Identifier>
@@ -764,8 +971,15 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     );
     // now do bottomToTop on this typeName for the method
     if (typeName != null) {
+      //      System.out.println("SUB-TO-SUPER call!!!!!!!!!! on method " + methodName);
       classDefinitions.get(typeName).subToSuper(methodName);
     }
+
+    // All function call statements, create them here.
+    // new A().m() -> actuals will be null, no change in formals or actuals
+
+    this.whichExp = 100;
+
     return _ret;
   }
 
@@ -776,6 +990,9 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
   public R visit(ArgList n, A argu) {
     R _ret = null;
     n.f0.accept(this, argu);
+
+    this.arguments.add(n.f0.f0.toString());
+
     n.f1.accept(this, argu);
     return _ret;
   }
@@ -788,22 +1005,33 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     R _ret = null;
     n.f0.accept(this, argu);
     n.f1.accept(this, argu);
+
+    this.arguments.add(n.f1.f0.toString());
+
     return _ret;
   }
 
   /**
-   * f0 -> IntegerLiteral()
-   *       | TrueLiteral()
-   *       | FalseLiteral()
-   *       | Identifier()
-   *       | ThisExpression()
-   *       | ArrayAllocationExpression()
-   *       | AllocationExpression()
-   *       | NotExpression()
+   * f0 -> IntegerLiteral() -> 1
+   *       | TrueLiteral() -> 1
+   *       | FalseLiteral() -> 1
+   *       | Identifier() -> 2
+   *       | ThisExpression() -> 2
+   *       | ArrayAllocationExpression() -> 10
+   *       | AllocationExpression() -> 5
+   *       | NotExpression() -> -1
    */
   public R visit(PrimaryExpression n, A argu) {
     R _ret = null;
+
+    this.whichPrimaryExp = 0;
+
     n.f0.accept(this, argu);
+
+    // Note that in all the primary expressions, exactly one identifier is used.
+    this.primaryExpId = this.varTypeName;
+    this.whichExp = 20;
+
     return _ret;
   }
 
@@ -813,6 +1041,9 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
   public R visit(IntegerLiteral n, A argu) {
     R _ret = null;
     n.f0.accept(this, argu);
+
+    this.whichPrimaryExp = 1;
+
     return _ret;
   }
 
@@ -822,6 +1053,9 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
   public R visit(TrueLiteral n, A argu) {
     R _ret = null;
     n.f0.accept(this, argu);
+
+    this.whichPrimaryExp = 1;
+
     return _ret;
   }
 
@@ -831,6 +1065,9 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
   public R visit(FalseLiteral n, A argu) {
     R _ret = null;
     n.f0.accept(this, argu);
+
+    this.whichPrimaryExp = 1;
+
     return _ret;
   }
 
@@ -840,7 +1077,10 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
   public R visit(Identifier n, A argu) {
     R _ret = null;
     n.f0.accept(this, argu);
-    varTypeName = n.f0.toString();
+
+    this.varTypeName = n.f0.toString();
+    this.whichPrimaryExp = 2;
+
     return _ret;
   }
 
@@ -850,6 +1090,10 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
   public R visit(ThisExpression n, A argu) {
     R _ret = null;
     n.f0.accept(this, argu);
+
+    this.varTypeName = "this";
+    this.whichPrimaryExp = 2;
+
     return _ret;
   }
 
@@ -867,6 +1111,9 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     n.f2.accept(this, argu);
     n.f3.accept(this, argu);
     n.f4.accept(this, argu);
+
+    this.whichPrimaryExp = 10;
+
     return _ret;
   }
 
@@ -880,6 +1127,9 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     R _ret = null;
     n.f0.accept(this, argu);
     n.f1.accept(this, argu);
+
+    this.whichPrimaryExp = 5;
+
     n.f2.accept(this, argu);
     n.f3.accept(this, argu);
     return _ret;
@@ -893,23 +1143,30 @@ public class GJDepthFirstSymbolTable<R, A> implements GJVisitor<R, A> {
     R _ret = null;
     n.f0.accept(this, argu);
     n.f1.accept(this, argu);
+
+    // USELESS expression doesn't contribute in analysis mostly
+    // because not a valid statement imo
+    this.whichPrimaryExp = -1;
+
     return _ret;
   }
 
+  /**
+   * Helper print method
+   * Used for debugging
+   */
   public void print() {
     for (Entry<String, ClassFieldTable> fMap : globalClassFieldTable.entrySet()) {
-      System.out.println("Class field details for " + fMap.getKey());
       fMap.getValue().print();
       System.out.println();
     }
 
     for (Entry<String, HashMap<String, ClassMethodTable>> mMap : globalClassMethodTable.entrySet()) {
       System.out.println("Class method details for " + mMap.getKey());
-
       for (Entry<String, ClassMethodTable> mTable : mMap
         .getValue()
         .entrySet()) {
-        System.out.println("Method field details for " + mTable.getKey());
+        System.out.println("Method details for " + mTable.getKey() + ":");
         mTable.getValue().print();
         System.out.println();
       }

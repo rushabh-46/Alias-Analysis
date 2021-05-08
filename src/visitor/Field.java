@@ -3,13 +3,13 @@ package visitor;
 public class Field {
 
   /** name of the field */
-  private String fieldName;
+  private final String fieldName;
 
-  /** type of the field e.g. int, bool, class A etc */
-  private String typeName;
+  /** type of the field e.g. int, Boolean, int[], class A etc */
+  private final String typeName;
 
   /** Only constructor */
-  Field(String fName, String type) {
+  public Field(String fName, String type) {
     this.fieldName = fName;
     this.typeName = type;
   }
@@ -24,6 +24,7 @@ public class Field {
     return this.typeName;
   }
 
+  /** used while debugging */
   public void print() {
     System.out.println(
       "\tField name: " + this.fieldName + " of type: " + this.typeName

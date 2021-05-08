@@ -1,101 +1,99 @@
 class Main5 {
-    public static void main(String[] args) {
-        PQR a;
-        Subclass b1;
-        Subclass b2;
-        Child c1;
-        Child c2;
-        int y;
-        int count;
-        Boolean bool;
-        Boolean temp;
 
-        a = new PQR();
-        b1 = new Subclass();
-        b2 = new Subclass();
-        c1 = new Child();
-        c2 = new Child();
+  public static void main(String[] args) {
+    PQR a;
+    Subclass b1;
+    Subclass b2;
+    Child c1;
+    Child c2;
+    int y;
+    int count;
+    Boolean bool;
+    Boolean temp;
 
-        y = b1.set(a);
-        y = b2.set(a);
+    a = new PQR();
+    b1 = new Subclass();
+    b2 = new Subclass();
+    c1 = new Child();
+    c2 = new Child();
 
-        y = c1.modify(b2);
+    y = b1.set(a);
+    y = b2.set(a);
 
-        count = 10;
-        temp = true;
+    y = c1.modify(b2);
 
-        while (temp) {
+    count = 10;
+    temp = true;
 
-            y = c1.modify(b1);
-            y = c2.modify(b2);
+    while (temp) {
+      y = c1.modify(b1);
+      y = c2.modify(b2);
 
-            y = 0;
-            bool = count < y;
-            bool = !bool;
-            if (bool) {
-                temp = false;
-            } else {
-
-            }
-            y = 1;
-            count = count - y;
-        }
-
-        y = c2.modify(b1);
-
-        /* b1 alias? b2 */
-
-        y = c1.set(b1);
-        y = c2.set(b2);
-
-        /* c1 alias? c2 */
-        y = 5;
-        System.out.println(y);
+      y = 0;
+      bool = count < y;
+      bool = !bool;
+      if (bool) {
+        temp = false;
+      } else {}
+      y = 1;
+      count = count - y;
     }
+
+    y = c2.modify(b1);
+
+    /* b1 alias? b2 */
+
+    y = c1.set(b1);
+    y = c2.set(b2);
+
+    /* c1 alias? c2 */
+    y = 5;
+    System.out.println(y);
+  }
 }
 
-class PQR {
-
-}
+class PQR {}
 
 class Subclass extends PQR {
-    PQR x;
 
-    public int set(PQR a) {
-        int t;
+  PQR x;
 
-        x = a;
+  public int set(PQR a) {
+    int t;
 
-        t = 0;
-        return t;
-    }
+    x = a;
+
+    t = 0;
+    return t;
+  }
 }
 
 class Child extends Subclass {
-    Subclass f;
 
-    public Subclass getSubclass() {
-        return f;
-    }
+  Subclass f;
 
-    public int set(Subclass b1) {
-        int t;
+  public Subclass getSubclass() {
+    return f;
+  }
 
-        f = b1;
+  public int set(Subclass b1) {
+    int t;
 
-        t = 0;
-        return t;
-    }
+    f = b1;
 
-    public int modify(Subclass b) {
-        int t;
-        Child temp;
+    t = 0;
+    return t;
+  }
 
-        f = b;
-        temp = this;
-        t = b.set(temp);
+  public int modify(Subclass b) {
+    int t;
+    Child temp;
 
-        t = 0;
-        return t;
-    }
+    f = b;
+    temp = this;
+    t = b.set(temp);
+
+    t = 0;
+    return t;
+  }
 }

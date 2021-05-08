@@ -1,33 +1,60 @@
-class Main1 {
-    public static void main(String[] args) {
-        AB a;
-        AB b;
-        int y;
+class Recursion1 {
 
-        a = new AB();
-        b = new AB();
+  public static void main(String[] args) {
+    N node;
+    N n;
+    N o;
+    N p;
+    N q;
+    int zero;
+    zero = 0;
+    node = new N();
+    zero = node.set_val(zero);
 
-        y = 0;
-        y = a.setNum(y);
+    n = node.recursive(zero, node);
+    o = node.next;
+    p = o.next;
+    q = p.next;
 
-        y = 1;
-        y = b.setNum(y);
-
-        /* a alias? b */
-        a = b;
-
-        y = 1;
-        System.out.println(y);
-    }
+    /* n alias? o */
+    /* o alias? p */
+    /* p alias? q */
+    /* n alias? node */
+    System.out.println(zero);
+  }
 }
 
-class AB {
-    int num;
+class N {
 
-    public int setNum(int n) {
-        int x;
-        x = 0;
-        num = n;
-        return x;
+  int value;
+  N next;
+
+  public int set_val(int v) {
+    value = v;
+    return value;
+  }
+
+  public N recursive(int i, N m) {
+    boolean b;
+    int j;
+    int ten;
+    int one;
+    N v;
+    N w;
+    w = m.next;
+    ten = 10;
+    one = 1;
+    b = i < ten;
+
+    /* v alias? w */
+    /* v alias? m */
+    if (b) {
+      j = i + one;
+      v = this.recursive(j, w);
+    } else {
+      v = m;
     }
+
+    return m;
+  }
 }
