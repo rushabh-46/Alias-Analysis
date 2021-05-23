@@ -117,9 +117,11 @@ public class BasicCallStmnt extends Stmnt {
       calleeMethods.add(global.get(className).get(methodName));
     }
     // adding to update the caller set of each of the callee method
-    for (ClassMethodTable cTable : calleeMethods) {
-      cTable.callers.add(mTable);
-    }
+    // !!! NO !!! -> Infinite loop !
+    // Don't add them right now. This will keep updating during analysing !!!
+    //    for (ClassMethodTable cTable : calleeMethods) {
+    //      cTable.callers.add(mTable);
+    //    }
   }
 
   /**
@@ -157,27 +159,42 @@ public class BasicCallStmnt extends Stmnt {
     newReturns.clear();
 
     for (ClassMethodTable calleeTable : calleeMethods) {
-      //      System.out.println("Analyzing callee method "
-      //            + calleeTable.methodName + "(" + calleeTable.className + ")");
+      System.out.println(
+        "Analyzing callee method " +
+        calleeTable.methodName +
+        "(" +
+        calleeTable.className +
+        ")"
+      );
       if (calleeTable.paramsSummary.size() != numArgs) {
-        //        System.out.println("Incorrect number of params!! mName="
-        //            + mTable.methodName + "=" + numArgs + " while calleeMName="
-        //            + calleeTable.methodName + "(" + calleeTable.className + ")="
-        //            + calleeTable.paramsSummary.size());
+        System.out.println(
+          "Incorrect number of params!! mName=" +
+          mTable.methodName +
+          "=" +
+          numArgs +
+          " while calleeMName=" +
+          calleeTable.methodName +
+          "(" +
+          calleeTable.className +
+          ")=" +
+          calleeTable.paramsSummary.size()
+        );
         continue;
       }
       // analyze this callee method calleeTable
       boolean toAdd = false;
-      //      System.out.println("Callee update formals :");
+      System.out.println("Callee update formals :");
       for (int i = 0; i < numArgs; i++) {
         // add the objects from callee formal to temporary actual
         newArgArray.get(i).addAll(calleeTable.paramsSummary.get(i).pointsTo);
 
-        //        System.out.print("Param " + i + " : calleeParamPO -> ");
-        //        calleeTable.paramsSummary.get(i).pointsTo.forEach(pO -> pO.printObject());
-        //        System.out.print(" ; actualsParam -> ");
-        //        actualSTEs.get(i).pointsTo.forEach(pO -> pO.printObject());
-        //        System.out.println();
+        System.out.print("Param " + i + " : calleeParamPO -> ");
+        calleeTable.paramsSummary
+          .get(i)
+          .pointsTo.forEach(pO -> pO.printObject());
+        System.out.print(" ; actualsParam -> ");
+        actualSTEs.get(i).pointsTo.forEach(pO -> pO.printObject());
+        System.out.println();
 
         // update formal of callee by adding only the actuals
         int prevSize = calleeTable.paramsSummary.get(i).pointsTo.size();
@@ -187,13 +204,34 @@ public class BasicCallStmnt extends Stmnt {
         int newSize = calleeTable.paramsSummary.get(i).pointsTo.size();
         if (newSize > prevSize) toAdd = true;
       }
-      // add the method to queue
-      //      if (toAdd) System.out.println("Yes asked to Add "
-      //          + calleeTable.methodName + "(" + calleeTable.className + ")");
-      if (toAdd && !calleeTable.queueON()) {
-        worklist.add(calleeTable);
+
+      if (toAdd) {
+        // add the method to queue
+        if (toAdd) System.out.println(
+          "Yes asked to Add " +
+          calleeTable.methodName +
+          "(" +
+          calleeTable.className +
+          ")"
+        );
+        // Add this mTable method in caller so to call it again !
+        // As there could be 'INTERESTING' changes in summary of callee worth wanting for mTable
+        // even if it already in queue, we must callback this mTable method
+        calleeTable.callers.add(this.mTable);
+        if (!calleeTable.queueON()) {
+          // Add the method in worklist if already not added.
+          worklist.add(calleeTable);
+        }
       }
       // collect all the returns
+      System.out.print(
+        "Callee return stack <Id>=" +
+        calleeTable.returnSummary.getVarName() +
+        " : "
+      );
+      calleeTable.returnSummary.pointsTo.forEach(pO -> pO.printObject());
+      System.out.println();
+
       newReturns.addAll(calleeTable.returnSummary.pointsTo);
     }
 

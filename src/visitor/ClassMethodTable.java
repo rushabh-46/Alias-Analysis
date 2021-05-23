@@ -34,7 +34,7 @@ public class ClassMethodTable {
    * Name of return value identifier.
    * No return for main() method.
    */
-  String returnId;
+  public String returnId;
 
   /**
    * Return STE in summary
@@ -51,6 +51,10 @@ public class ClassMethodTable {
   /**
    * All the possible callers to this method !!!
    * Create this after fully constructing the callees!!
+   * 
+   * Do not worry about it being a set rather than queue as it might seem to get into 
+   * infinite A -> B -> A caller-callee
+   * Indeed a method gets added in caller only when there is a change in the formals of callee.
    */
   public final Set<ClassMethodTable> callers;
 
@@ -79,11 +83,11 @@ public class ClassMethodTable {
     this.table = new HashMap<Symbol, SymbolTableEntry>();
     this.paramsSummary = new ArrayList<SymbolTableEntry>();
 
-    //    Symbol symbol = new Symbol("this", className);
-    //    SymbolTableEntry ste = new SymbolTableEntry("this", className);
-    //    ste.setAsParam();
-    //    this.table.put(symbol, ste);
-    //    this.paramsSummary.add(ste);
+    Symbol symbol = new Symbol("this", className);
+    SymbolTableEntry ste = new SymbolTableEntry("this", className);
+    ste.setAsParam();
+    this.table.put(symbol, ste);
+    this.paramsSummary.add(ste);
 
     this.statements = new ArrayList<Stmnt>();
     this.callers = new HashSet<ClassMethodTable>();

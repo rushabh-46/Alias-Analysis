@@ -60,7 +60,7 @@ public class Main {
        *  Note that classDetails have all the hierarchial class fields.
        *  So lets use them to add the required symbols in each method (table).
        *
-       *  2. Create CALL GRAPH !!!
+       *  2. Add return summary from this table created for the method !!
        */
       classHeirarchy.classes.forEach(
         (clName, clDetails) -> {
@@ -85,7 +85,19 @@ public class Main {
           } else {
             mMap.forEach(
               (mName, mTable) -> {
-                mTable.table.putAll(fieldMap);
+                // make a new complete different copy
+                HashMap<Symbol, SymbolTableEntry> newTable = (HashMap<Symbol, SymbolTableEntry>) fieldMap.clone();
+                mTable.table.putAll(newTable); // 1.
+                // Searching for return ID
+                for (Entry<Symbol, SymbolTableEntry> e : mTable.table.entrySet()) {
+                  if (mTable.returnId == e.getKey().getVarName()) {
+                    mTable.returnSummary = e.getValue();
+                    break;
+                  }
+                }
+                if (mTable.returnSummary == null) {
+                  //                  System.out.println("ERROR !! Couldn't find return id for " + mName + "(" + clName + ")");
+                }
               }
             );
           }
@@ -112,7 +124,7 @@ public class Main {
             (mName, mTable) -> {
               mTable.statements.forEach(
                 stmnt -> {
-                  stmnt.link(mTable.table);
+                  stmnt.link(mTable);
                 }
               );
             }
@@ -141,9 +153,48 @@ public class Main {
       while (!worklist.isEmpty()) {
         ClassMethodTable mTable = worklist.remove();
         mTable.queueOFF();
-        //        System.out.println("\t WORKLIST pop : " + mTable.methodName + "(" + mTable.className + ")");
-        for (Stmnt statement : mTable.statements) {
-          //          System.out.println("Solving statement of type = " + statement.getType());
+        System.out.println(
+          "\t WORKLIST pop : " +
+          mTable.methodName +
+          "(" +
+          mTable.className +
+          ")"
+        );
+        // Before analyzing the method -> lets modify the heap fields+locals
+        // with the modified this pointsTo (argument 0)
+        SymbolTableEntry thisSTE = Stmnt.getSTEfromID("this", mTable.table);
+
+        mTable.table.forEach(
+          (s, lfSTE) -> {
+            if (!lfSTE.isParameter()) {
+              thisSTE.pointsTo.forEach(
+                thisPO -> {
+                  Set<PointerObject> tempPOs = thisPO.heap.get(
+                    lfSTE.getVarName()
+                  );
+                  if (tempPOs != null) lfSTE.pointsTo.addAll(tempPOs);
+                }
+              );
+            }
+          }
+        );
+
+        // Maintain stack sum and restart heap update count.
+        int stackPointsSum = 0;
+        for (Entry<Symbol, SymbolTableEntry> e : mTable.table.entrySet()) {
+          stackPointsSum += e.getValue().pointsTo.size();
+        }
+        PointerObject.heapUpdateCounter = 0;
+        
+        // Analyzing each statement.
+        int statementIndex = 0;
+        
+        while (statementIndex < mTable.statements.size()) {
+          Stmnt statement = mTable.statements.get(statementIndex);
+//        for (Stmnt statement : mTable.statements) {
+          System.out.println(
+            "Solving statement of type = " + statement.getType()
+          );
           switch (statement.getType()) {
             case 1:/* Alloc statement */
               if (!pointerObjectIDs.contains(statement.getLabel())) {
@@ -165,32 +216,63 @@ public class Main {
             case 5:/* Basic Call Statement */
               ((BasicCallStmnt) statement).resolve(worklist);
               break;
+            case 6: /* While End Statement */
+              System.out.println("While statement needs to be checked !!");
+              ((WhileEndStmnt) statement).resolve();
+              if (((WhileEndStmnt) statement).isDone == false) {
+                System.out.println("While statement needs to reanalyse !!");
+                statementIndex = ((WhileEndStmnt) statement).getStartStatementIndex();
+                continue;
+              }
+              break;
+          }
+          
+          statementIndex ++;
+          
+          if (statementIndex >= mTable.statements.size()) {
+            int tempStackPointsSum = 0;
+            for (Entry<Symbol, SymbolTableEntry> e : mTable.table.entrySet()) {
+              tempStackPointsSum += e.getValue().pointsTo.size();
+            }
+            if (tempStackPointsSum == stackPointsSum && PointerObject.heapUpdateCounter == 0) {
+              break;
+            }
+            // Reinitialize counters and restart with statement 0
+            PointerObject.heapUpdateCounter = 0;
+            stackPointsSum = tempStackPointsSum;
+            statementIndex  = 0;
           }
         }
         // make sure to resolve the 'this' object by adding all its fields into the heap.
-        // while adding to queue make sure to turn queue ON !
+
+        // While adding to queue, make sure to turn queue ON !
+        // Add all the callers of this analysed method ! These callers might be looking
+        // for the 'INTERESTING' changes in the summary of the current method.
         for (ClassMethodTable cTable : mTable.callers) {
-          if (mTable != cTable && !cTable.queueON()) {
-            //            System.out.println("Adding caller : " + cTable.methodName + "(" + cTable.className + ")");
+          if (/*mTable != cTable && <- no need to worry about this case !! */
+            !cTable.queueON()
+          ) {
             worklist.add(cTable);
           }
         }
+        // very important step !! clear all the callers as they are in queue now.
+        mTable.callers.clear();
       }
 
-      //      System.out.print("\n\n");
-      // globalClassMethodTable.forEach(
-      //   (cName, cMap) -> {
-      //     System.out.println("Stack info for class " + cName);
-      //     cMap.forEach(
-      //       (mName, mTable) -> {
-      //         System.out.println("Stack info for method " + mName);
-      //         mTable.table.forEach((s, ste) -> ste.print());
-      //       }
-      //     );
-      //     System.out.print("\n");
-      //   }
-      // );
-      // allPOs.forEach(pO -> pO.print());
+      System.out.print("\n\n");
+      globalClassMethodTable.forEach(
+        (cName, cMap) -> {
+          System.out.println("Stack info for class " + cName);
+          cMap.forEach(
+            (mName, mTable) -> {
+              System.out.println("Stack info for method " + mName);
+              mTable.table.forEach((s, ste) -> ste.print());
+            }
+          );
+          System.out.print("\n");
+        }
+      );
+      allPOs.forEach(pO -> pO.print());
 
       /**
        * Solving queries in order of the list array

@@ -35,7 +35,7 @@ public class CopyStmnt extends Stmnt {
   public void resolve() {
     ste1.pointsTo.addAll(ste2.pointsTo);
     this.resolveThis(id1, ste1);
-    //    System.out.print("After copy: ");
-    //    ste1.print();
+    System.out.print("After copy: ");
+    ste1.print();
   }
 }

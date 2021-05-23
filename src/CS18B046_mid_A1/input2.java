@@ -1,10 +1,10 @@
 class Main2 {
     public static void main(String[] args) {
-        CA a;
-        CB b;
+        A a;
+        B b;
         int y;
-        a = new CA();
-        b = new CB();
+        a = new A();
+        b = new B();
         y = b.foo(a);
         /* a alias? b */
         y = 2;
@@ -12,18 +12,18 @@ class Main2 {
     }
 }
 
-class CA {
-    CA f1;
+class A {
+    A f1;
 }
 
-class CB extends CA {
-    CB f2;
+class B extends A {
+    B f2;
 
-    public int foo(CA x) {
+    public int foo(A x) {
         int t;
-        CB temp;
+        B temp;
         t = 0;
-        temp = new CB();
+        temp = new B();
         x.f1 = temp;
         return t;
     }

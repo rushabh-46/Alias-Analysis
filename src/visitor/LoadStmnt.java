@@ -43,7 +43,9 @@ public class LoadStmnt extends Stmnt {
       }
     );
     this.resolveThis(id1, ste1);
-    //    System.out.print("After load: ");
-    //    ste1.print();
+    System.out.print("After load: ");
+    ste1.print();
+    System.out.print("Nfter load: ");
+    ste2.print();
   }
 }

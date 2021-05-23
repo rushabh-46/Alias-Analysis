@@ -7,10 +7,13 @@ public abstract class Stmnt {
 
   /**
    * type of Statement
+   * 0. Query Statement
    * 1. Simple (non-array) Alloc statement
    * 2. Simple (non-array) copy statement
    * 3. Load statement (Field read expression) Id.Id
    * 4. Store statement (Field Assignment statement)
+   * 5. Basic call Statement
+   * 6. While end statement
    */
   private final int typeOfStmnt;
 
@@ -33,6 +36,8 @@ public abstract class Stmnt {
   protected SymbolTableEntry ste2;
   protected SymbolTableEntry ste3;
   protected SymbolTableEntry thisSte;
+  protected ClassMethodTable methodTable;
+  
 
   /**
    * Default constructor.
@@ -106,6 +111,26 @@ public abstract class Stmnt {
   public void setId3(String id) {
     this.id3 = id;
   }
+  
+  /**
+   * Finds the id in tables and returns its STE
+   * If not found reports an error
+   * @param id - string id - symbol
+   * @param table - all the symbols of the method - includes fields, args and locals
+   * @return corresponding STE if found else null
+   */
+  public static SymbolTableEntry getSTEfromID(
+    String id,
+    HashMap<Symbol, SymbolTableEntry> table
+  ) {
+    for (Entry<Symbol, SymbolTableEntry> e : table.entrySet()) {
+      if (id == e.getKey().getVarName()) {
+        return e.getValue();
+      }
+    }
+    //    System.out.println("Failed to link the id: " + id);
+    return new SymbolTableEntry("temp", "T");
+  }
 
   /**
    * Finds the id in tables and returns its STE
@@ -124,7 +149,7 @@ public abstract class Stmnt {
       }
     }
     //    System.out.println("Failed to link the id: " + id);
-    return null;
+    return new SymbolTableEntry("temp", "T");
   }
 
   /**
@@ -139,11 +164,12 @@ public abstract class Stmnt {
    * It first links the this object which will be useful anyway.
    * @param table - symbol table
    */
-  public void link(HashMap<Symbol, SymbolTableEntry> table) {
+  public void link(ClassMethodTable mT) {
     //    System.out.println("Linking statement of type " + typeOfStmnt + " with ids = "
     //        + id1 + ", " + id2 + ", " + id3);
-    thisSte = linkIdToSTE("this", table);
-    linkToSymbol(table);
+    this.methodTable = mT;
+    thisSte = linkIdToSTE("this", mT.table);
+    linkToSymbol(mT.table);
   }
 
   /**

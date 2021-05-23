@@ -1,6 +1,7 @@
 package visitor;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
 
 public class PointerObject {
@@ -16,12 +17,18 @@ public class PointerObject {
   public final HashMap<String, Set<PointerObject>> heap;
 
   /**
+   * Maintain heap update counter
+   */
+  public static int heapUpdateCounter = 0;
+  
+  /**
    * Default constructor
    * @param label - label of object creation
    */
   public PointerObject(final int label) {
     this.label = label;
     this.heap = new HashMap<String, Set<PointerObject>>();
+    PointerObject.heapUpdateCounter = 0;
   }
 
   /**
@@ -38,10 +45,19 @@ public class PointerObject {
    * @param pointsTo - set of all the points-to objects
    */
   public void updateHeap(String field, Set<PointerObject> pointsTo) {
-    if (heap.containsKey(field)) {
+    if (heap.containsKey(field))
+    {
+      int temp = heap.get(field).size();
       heap.get(field).addAll(pointsTo);
-    } else {
-      heap.put(field, pointsTo);
+      if (temp < heap.get(field).size()) {
+        PointerObject.heapUpdateCounter++;
+      }
+    } else
+    {
+      Set<PointerObject> newHeap = new HashSet<PointerObject>();
+      newHeap.addAll(pointsTo);
+      heap.put(field, newHeap);
+      PointerObject.heapUpdateCounter += pointsTo.size();
     }
   }
 

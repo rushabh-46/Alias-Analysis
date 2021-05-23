@@ -41,5 +41,9 @@ public class StoreStmnt extends Stmnt {
       }
     );
     this.resolveThis(id1, ste1);
+    System.out.print("After store: ");
+    ste1.print();
+    System.out.print("Nfter store: ");
+    ste3.print();
   }
 }

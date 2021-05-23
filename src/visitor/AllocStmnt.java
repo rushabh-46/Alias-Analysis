@@ -30,10 +30,11 @@ public class AllocStmnt extends Stmnt {
    */
   @Override
   public void resolve() {
+    // System.out.println("Alloc resolving for " + id1);
     PointerObject newObj = new PointerObject(this.label);
     ste1.pointsTo.add(newObj);
     this.resolveThis(id1, ste1);
-    //    System.out.print("After alloc: ");
-    //    ste1.print();
+    System.out.print("After alloc: ");
+    ste1.print();
   }
 }

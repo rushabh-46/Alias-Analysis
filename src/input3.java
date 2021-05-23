@@ -1,45 +1,40 @@
-class Main3 {
+class input4 {
     public static void main(String[] args) {
-        TBH a;
-        TBH b;
-        int y;
-        Boolean t;
+        A4 a1;
+        A4 a2;
+        B4 b1;
 
-        a = new TBH();
-        b = new TBH();
+        boolean flag;
 
-        y = a.set(b);
-        t = false;
-        if (t) {
-            y = a.set(b);
-        } else {
-            y = b.set(a);
-        }
+        a1 = new B4();
+        b1 = new B4();
 
-        y = a.setNext();
-        y = b.setNext();
+        flag = a1.foo(b1);
+        a2 = b1.aClass;
 
-        /* a alias? b */
-
-        y = 3;
-        System.out.println(y);
+        /* a2 alias? a1 */
+        /* a2 alias? b1 */
+        /* a1 alias? b1 */
+        {}
     }
 }
 
-class TBH {
-    TBH f;
+class A4 {
+    boolean flag;
 
-    public int set(TBH x) {
-        int t;
-        t = 0;
-        f = x;
-        return t;
+    public boolean foo(B4 b) {
+        A4 a;
+        a = this;
+        
+        b.aClass = a;
+        return flag;
     }
+}
 
-    public int setNext() {
-        int t;
-        t = 0;
-        f = this;
-        return t;
+class B4 extends A4 {
+    A4 aClass;
+    public boolean foo(B4 b) {
+        b.aClass = b;
+        return flag;
     }
 }
